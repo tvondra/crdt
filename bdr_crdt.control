@@ -1,0 +1,5 @@
+# bdr_crdt extension
+comment = ''
+default_version = '0.0.1'
+module_pathname = '$libdir/bdr_crdt'
+relocatable = true

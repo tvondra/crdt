@@ -8,10 +8,9 @@
 typedef struct crdt_counter_node
 {
 	uint64		sysid;
+	uint64		value;
 	TimeLineID	timeline;
 	Oid			dboid;
-	uint64		value;
-	uint32		version;
 } crdt_counter_node;
 
 typedef struct crdt_counter
@@ -19,11 +18,12 @@ typedef struct crdt_counter
 	/* varlena header (do not touch directly!) */
 	int32				vl_len_;
 
+	/* list of per-node counters */
+	int32				nnodes;
+
 	/* current total counter value */
 	int64				value;
 
-	/* list of per-node counters */
-	int32				nnodes;
 	crdt_counter_node	nodes[FLEXIBLE_ARRAY_MEMBER];
 
 } crdt_counter;

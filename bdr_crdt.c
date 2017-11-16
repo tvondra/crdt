@@ -101,7 +101,6 @@ int4_to_crdt_counter(PG_FUNCTION_ARGS)
 	counter->nodes[0].sysid = GetSystemIdentifier();
 	counter->nodes[0].timeline = ThisTimeLineID;
 	counter->nodes[0].value = value;
-	counter->nodes[0].version = 1;
 
 	PG_RETURN_BYTEA_P(counter);
 }
@@ -130,7 +129,6 @@ int8_to_crdt_counter(PG_FUNCTION_ARGS)
 	counter->nodes[0].sysid = GetSystemIdentifier();
 	counter->nodes[0].timeline = ThisTimeLineID;
 	counter->nodes[0].value = value;
-	counter->nodes[0].version = 1;
 
 	PG_RETURN_BYTEA_P(counter);
 }
@@ -154,8 +152,6 @@ crdt_counter_plus_int4(PG_FUNCTION_ARGS)
 	if (value < 0)
 		elog(ERROR, "invalid counter value (only non-negative values allowed)");
 
-	elog(WARNING, "START: node %lu adding %d to %s", GetSystemIdentifier(), value, crdt_counter_to_cstring(counter));
-
 	found = false;
 	idx = -1;
 
@@ -195,17 +191,11 @@ crdt_counter_plus_int4(PG_FUNCTION_ARGS)
 		tmp->nodes[tmp->nnodes].sysid    = GetSystemIdentifier();
 		tmp->nodes[tmp->nnodes].timeline = ThisTimeLineID;
 		tmp->nodes[tmp->nnodes].value    = value;
-		tmp->nodes[tmp->nnodes].version  = 1;
 
 		tmp->nnodes++;
 	}
 	else
-	{
 		tmp->nodes[idx].value += value;
-		tmp->nodes[idx].version++;
-	}
-
-	elog(WARNING, "STOP: node %lu adding %d to %s", GetSystemIdentifier(), value, crdt_counter_to_cstring(tmp));
 
 	PG_RETURN_BYTEA_P(tmp);
 }
@@ -229,8 +219,6 @@ crdt_counter_plus_int8(PG_FUNCTION_ARGS)
 	if (value < 0)
 		elog(ERROR, "invalid counter value (only non-negative values allowed)");
 
-	elog(WARNING, "START: node %lu adding %ld to %s", GetSystemIdentifier(), value, crdt_counter_to_cstring(counter));
-
 	found = false;
 	idx = -1;
 
@@ -270,17 +258,11 @@ crdt_counter_plus_int8(PG_FUNCTION_ARGS)
 		tmp->nodes[tmp->nnodes].sysid    = GetSystemIdentifier();
 		tmp->nodes[tmp->nnodes].timeline = ThisTimeLineID;
 		tmp->nodes[tmp->nnodes].value    = value;
-		tmp->nodes[tmp->nnodes].version  = 1;
 
 		tmp->nnodes++;
 	}
 	else
-	{
 		tmp->nodes[idx].value += value;
-		tmp->nodes[idx].version++;
-	}
-
-	elog(WARNING, "STOP: node %lu adding %ld to %s", GetSystemIdentifier(), value, crdt_counter_to_cstring(tmp));
 
 	PG_RETURN_BYTEA_P(tmp);
 }
@@ -322,7 +304,6 @@ crdt_counter_merge(PG_FUNCTION_ARGS)
 			{
 				result->value -= node2->value;
 
-				node2->version = (node1->version > node2->version) ? node1->version : node2->version;
 				node2->value = (node1->value > node2->value) ? node1->value : node2->value;
 
 				result->value += node2->value;
@@ -343,12 +324,10 @@ crdt_counter_merge(PG_FUNCTION_ARGS)
 			result->nodes[result->nnodes].dboid = counter2->nodes[i].dboid;
 			result->nodes[result->nnodes].timeline = counter2->nodes[i].timeline;
 			result->nodes[result->nnodes].sysid = counter2->nodes[i].sysid;
-			result->nodes[result->nnodes].version = counter2->nodes[i].version;
+			result->nodes[result->nnodes].value = counter2->nodes[i].value;
 			result->nnodes++;
 		}
 	}
-
-	elog(WARNING, "merge %s + %s => %s", crdt_counter_to_cstring(counter1), crdt_counter_to_cstring(counter2), crdt_counter_to_cstring(result));
 
 	PG_RETURN_BYTEA_P(result);
 }
@@ -372,11 +351,10 @@ crdt_counter_to_cstring(crdt_counter *counter)
 	appendStringInfo(&str, "[%lu,%d", counter->value, counter->nnodes);
 
 	for (i = 0; i < counter->nnodes; i++)
-		appendStringInfo(&str, ",(%lu,%u,%u,%u,%lu)",
+		appendStringInfo(&str, ",(%lu,%u,%u,%lu)",
 							counter->nodes[i].sysid,
 							counter->nodes[i].timeline,
 							counter->nodes[i].dboid,
-							counter->nodes[i].version,
 							counter->nodes[i].value);
 
 	appendStringInfoChar(&str, ']');
